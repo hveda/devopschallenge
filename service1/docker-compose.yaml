@@ -1,1 +1,20 @@
-# Write Docker Compose for Service 1
+version: "3.6"
+
+x-build-args: &build_args
+  RUST_VERSION: "1.70.0"
+
+services:
+  service1:
+    build:
+      context: ./service1
+      dockerfile: ./dockerfile.d/rust.dockerfile
+      target: development
+      args:
+        <<: *build_args
+    image: "service1-development"
+    ports:
+      - "8080:8080"
+      
+networks:
+  shared_network:
+    external: true
