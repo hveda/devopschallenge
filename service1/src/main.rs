@@ -33,15 +33,14 @@ async fn ping_service2() -> Result<HttpResponse, Error>  {
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     HttpServer::new(|| {
-        let cors = Cors::default()
-            .allowed_origin("http://127.0.0.1:8081");
+        let cors = Cors::default();
 
         App::new()
             .wrap(cors)
             .service(hello)
             .service(ping_service2)
     })
-    .bind("127.0.0.1:8080")?
+    .bind("0.0.0.0:8080")?
     .run()
     .await
 }
