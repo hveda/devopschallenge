@@ -84,13 +84,17 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v2
 
+      - name: Get Tag Name
+        id: get_tag
+        run: echo "TAG=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
+
       - name: Build Docker Image for Service 1
         working-directory: ./service1
         run: |
           if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
             image_tag=latest
           else
-            image_tag=${{ github.ref }}
+            image_tag=${{ steps.get_tag.outputs.TAG }}
           fi
           docker build -t docker.pkg.github.com/${{ github.repository }}/service1:${image_tag} -f ../dockerfile.d/rust.dockerfile --build-arg="APP_NAME=service1" .
           echo "::set-output name=image_tag::${image_tag}"
@@ -113,13 +117,17 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v2
 
+      - name: Get Tag Name
+        id: get_tag
+        run: echo "TAG=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
+
       - name: Build Docker Image for Service 2
         working-directory: ./service2
         run: |
           if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
             image_tag=latest
           else
-            image_tag=${{ github.ref }}
+            image_tag=${{ steps.get_tag.outputs.TAG }}
           fi
           docker build -t docker.pkg.github.com/${{ github.repository }}/service2:${image_tag} -f ../dockerfile.d/rust.dockerfile --build-arg="APP_NAME=service2" .
           echo "::set-output name=image_tag::${image_tag}"
@@ -151,8 +159,8 @@ jobs:
 
         - name: Replace Tag in Kubernetes Manifest
           run: |
-            sed -i "s/:latest/:${{ github.ref }}/g" ./service1/k8s.yaml
-            sed -i "s/:latest/:${{ github.ref }}/g" ./service2/k8s.yaml
+            sed -i "s/:latest/:${{ steps.get_tag.outputs.TAG }}/g" ./service1/k8s.yaml
+            sed -i "s/:latest/:${{ steps.get_tag.outputs.TAG }}/g" ./service2/k8s.yaml
 
         - name: Deploy to GKE
           run: |
