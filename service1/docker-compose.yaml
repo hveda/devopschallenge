@@ -2,13 +2,13 @@ version: "3.6"
 
 x-build-args: &build_args
   RUST_VERSION: "1.70.0"
+  APP_NAME: "service1"
 
 services:
   service1:
     build:
-      context: ./service1
-      dockerfile: ./dockerfile.d/rust.dockerfile
-      target: development
+      context: ./
+      dockerfile: ../dockerfile.d/rust.dockerfile
       args:
         <<: *build_args
     image: "service1-development"
@@ -16,5 +16,5 @@ services:
       - "8080:8080"
       
 networks:
-  shared_network:
+  pleno_network:
     external: true

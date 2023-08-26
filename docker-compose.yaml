@@ -11,11 +11,11 @@ services:
   service1:
     # Include service-specific configuration
     extends:
-      file: ./service1/docker-compose.yml
+      file: ./service1/docker-compose.yaml
       service: service1
 
   service2:
     # Include service-specific configuration
     extends:
-      file: ./service2/docker-compose.yml
+      file: ./service2/docker-compose.yaml
       service: service2
