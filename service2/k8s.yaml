@@ -1,0 +1,81 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: service2
+  name: service2-deployment
+  namespace: service2
+spec:
+  progressDeadlineSeconds: 600
+  replicas: 1
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      app: service2
+  strategy:
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app: service2
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: node
+                operator: In
+                values:
+                - applicationservice
+      containers:
+      - image: docker.pkg.github.com/hveda/devopschallenge/service2:latest
+        imagePullPolicy: IfNotPresent
+        name: service2
+        resources: {}
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: service2
+  name: service2-svc
+  namespace: service2
+spec:
+  ports:
+  - port: 8081
+    protocol: TCP
+    targetPort: 8081
+  selector:
+    app: service2
+  sessionAffinity: None
+  type: ClusterIP
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ingress-service2
+  namespace: service2
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: service2.pleno.earth
+    http:
+      paths:
+      - backend:
+          service:
+            name: service2-svc
+            port:
+              number: 8081
+        path: /
+        pathType: Prefix
+  tls:
+  - hosts:
+    - service2.pleno.earth
+    secretName: wildcard-pleno-earth-tls
