@@ -1,1 +1,21 @@
-# Write Docker Compose for both Service 1 and 2
+version: "3.6"
+
+networks:
+ pleno-network:
+  driver: bridge
+  ipam:
+   config:
+   - subnet: 10.10.0.0/23
+
+services:
+  service1:
+    # Include service-specific configuration
+    extends:
+      file: ./service1/docker-compose.yaml
+      service: service1
+
+  service2:
+    # Include service-specific configuration
+    extends:
+      file: ./service2/docker-compose.yaml
+      service: service2

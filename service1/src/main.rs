@@ -16,7 +16,7 @@ async fn ping_service2() -> Result<HttpResponse, Error>  {
     let client = Client::new();
 
     for _ in 0..MAX_RETRIES {
-        match client.post("http://127.0.0.1:8081/pong").send().await {
+        match client.post("http://service2:8081/pong").send().await {
             Ok(mut response) => {
                 let body = response.body().await?;
                 return Ok(HttpResponse::Ok().body(body));
