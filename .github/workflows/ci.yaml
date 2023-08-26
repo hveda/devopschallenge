@@ -78,7 +78,7 @@ jobs:
     name: Build Docker Image for Service 1
     runs-on: ubuntu-latest
     needs: [test-service1, lint-service1]
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    if: startsWith(github.ref, 'refs/heads/main') || startsWith(github.ref, 'refs/tags/v')
 
     steps:
       - name: Checkout Repository
@@ -86,7 +86,14 @@ jobs:
 
       - name: Build Docker Image for Service 1
         working-directory: ./service1
-        run: docker build -t docker.pkg.github.com/${{ github.repository }}/service1:latest -t docker.pkg.github.com/${{ github.repository }}/service1:${{ github.ref }} -f ../dockerfile.d/rust.dockerfile --build-arg="APP_NAME=service1" .
+        run: |
+          if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+            image_tag=latest
+          else
+            image_tag=${{ github.ref }}
+          fi
+          docker build -t docker.pkg.github.com/${{ github.repository }}/service1:${image_tag} -f ../dockerfile.d/rust.dockerfile --build-arg="APP_NAME=service1" .
+          echo "::set-output name=image_tag::${image_tag}"
         env:
           DOCKER_BUILDKIT: 1
 
@@ -94,15 +101,13 @@ jobs:
         run: echo "${{ secrets.CR_PAT }}" | docker login docker.pkg.github.com -u ${{ github.repository_owner }} --password-stdin
 
       - name: Push Docker Image
-        run: |
-          docker push docker.pkg.github.com/${{ github.repository }}/service1:latest
-          docker push docker.pkg.github.com/${{ github.repository }}/service1:${{ github.ref}}
+        run: docker push docker.pkg.github.com/${{ github.repository }}/service1:${{ steps.build-service1.outputs.image_tag }}
 
   build-service2:
     name: Build Docker Image for Service 2
     runs-on: ubuntu-latest
     needs: [test-service2, lint-service2]
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    if: startsWith(github.ref, 'refs/heads/main') || startsWith(github.ref, 'refs/tags/v')
 
     steps:
       - name: Checkout Repository
@@ -110,7 +115,14 @@ jobs:
 
       - name: Build Docker Image for Service 2
         working-directory: ./service2
-        run: docker build -t docker.pkg.github.com/${{ github.repository }}/service2:latest -t docker.pkg.github.com/${{ github.repository }}/service2:${{ github.ref }} -f ../dockerfile.d/rust.dockerfile --build-arg="APP_NAME=service2" .
+        run: |
+          if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+            image_tag=latest
+          else
+            image_tag=${{ github.ref }}
+          fi
+          docker build -t docker.pkg.github.com/${{ github.repository }}/service2:${image_tag} -f ../dockerfile.d/rust.dockerfile --build-arg="APP_NAME=service2" .
+          echo "::set-output name=image_tag::${image_tag}"
         env:
           DOCKER_BUILDKIT: 1
 
@@ -118,9 +130,7 @@ jobs:
         run: echo "${{ secrets.CR_PAT }}" | docker login docker.pkg.github.com -u ${{ github.repository_owner }} --password-stdin
 
       - name: Push Docker Image
-        run: |
-          docker push docker.pkg.github.com/${{ github.repository }}/service2:latest
-          docker push docker.pkg.github.com/${{ github.repository }}/service2:${{ github.ref}}
+        run: docker push docker.pkg.github.com/${{ github.repository }}/service2:${{ steps.build-service2.outputs.image_tag }}
 
   deploy-to-gke:
       name: Deploy to GKE
@@ -139,6 +149,11 @@ jobs:
             project_id: ${{ secrets.GCLOUD_PROJECT_ID }}
             export_default_credentials: true
 
+        - name: Replace Tag in Kubernetes Manifest
+          run: |
+            sed -i "s/:latest/:${{ github.ref }}/g" ./service1/k8s.yaml
+            sed -i "s/:latest/:${{ github.ref }}/g" ./service2/k8s.yaml
+
         - name: Deploy to GKE
           run: |
-            kubectl apply -f ./service1/k8s.yaml -f ./service2/k8s.yaml
+            kubectl apply -f ./service1/k8s.yaml,./service2/k8s.yaml
