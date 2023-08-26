@@ -86,7 +86,7 @@ jobs:
 
       - name: Build Docker Image for Service 1
         working-directory: ./service1
-        run: docker build -t docker.pkg.github.com/${{ github.repository }}/service1:latest -f ../dockerfile.d/rust.dockerfile --build-arg="APP_NAME=service1" .
+        run: docker build -t docker.pkg.github.com/${{ github.repository }}/service1:latest -t docker.pkg.github.com/${{ github.repository }}/service1:${{ github.ref }} -f ../dockerfile.d/rust.dockerfile --build-arg="APP_NAME=service1" .
         env:
           DOCKER_BUILDKIT: 1
 
@@ -94,7 +94,9 @@ jobs:
         run: echo "${{ secrets.CR_PAT }}" | docker login docker.pkg.github.com -u ${{ github.repository_owner }} --password-stdin
 
       - name: Push Docker Image
-        run: docker push docker.pkg.github.com/${{ github.repository }}/service1:latest
+        run: |
+          docker push docker.pkg.github.com/${{ github.repository }}/service1:latest
+          docker push docker.pkg.github.com/${{ github.repository }}/service1:${{ github.ref}}
 
   build-service2:
     name: Build Docker Image for Service 2
@@ -108,7 +110,7 @@ jobs:
 
       - name: Build Docker Image for Service 2
         working-directory: ./service2
-        run: docker build -t docker.pkg.github.com/${{ github.repository }}/service2:latest -f ../dockerfile.d/rust.dockerfile --build-arg="APP_NAME=service1" .
+        run: docker build -t docker.pkg.github.com/${{ github.repository }}/service2:latest -t docker.pkg.github.com/${{ github.repository }}/service2:${{ github.ref }} -f ../dockerfile.d/rust.dockerfile --build-arg="APP_NAME=service2" .
         env:
           DOCKER_BUILDKIT: 1
 
@@ -116,7 +118,9 @@ jobs:
         run: echo "${{ secrets.CR_PAT }}" | docker login docker.pkg.github.com -u ${{ github.repository_owner }} --password-stdin
 
       - name: Push Docker Image
-        run: docker push docker.pkg.github.com/${{ github.repository }}/service2:latest
+        run: |
+          docker push docker.pkg.github.com/${{ github.repository }}/service2:latest
+          docker push docker.pkg.github.com/${{ github.repository }}/service2:${{ github.ref}}
 
   deploy-to-gke:
       name: Deploy to GKE
