@@ -156,4 +156,4 @@ jobs:
 
         - name: Deploy to GKE
           run: |
-            kubectl apply -f ./service1/k8s.yaml -f ./service2/k8s.yaml
+            kubectl apply -f ./service1/k8s.yaml,./service2/k8s.yaml
