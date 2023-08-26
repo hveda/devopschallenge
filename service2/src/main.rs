@@ -14,7 +14,10 @@ async fn pong() -> impl Responder {
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     HttpServer::new(|| {
-        let cors = Cors::default();
+        let cors = Cors::default()
+            .allowed_origin("http://127.0.0.1:8081")
+            .allowed_origin("http://service1") // Add additional origins here
+            .allowed_origin("http://pleno.earth");
 
         App::new()
             .wrap(cors)
