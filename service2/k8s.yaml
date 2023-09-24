@@ -65,7 +65,7 @@ metadata:
 spec:
   ingressClassName: nginx
   rules:
-  - host: service2.pleno.earth
+  - host: service2.heri.life
     http:
       paths:
       - backend:
@@ -77,5 +77,5 @@ spec:
         pathType: Prefix
   tls:
   - hosts:
-    - service2.pleno.earth
+    - service2.heri.life
     secretName: wildcard-pleno-earth-tls

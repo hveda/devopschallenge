@@ -13,6 +13,11 @@ on:
     tags:
       - 'v*'  # Match tags starting with 'v' (e.g., v1.0.0)
 
+env:
+  PROJECT_ID: ${{ secrets.GKE_PROJECT }}
+  GKE_CLUSTER: ${{ secrets.GKE_CLUSTER }}
+  GKE_ZONE: ${{ secrets.GKE_ZONE }}
+
 jobs:
   test-service1:
     name: Test Service 1
@@ -81,31 +86,43 @@ jobs:
     if: startsWith(github.ref, 'refs/heads/main') || startsWith(github.ref, 'refs/tags/v')
 
     steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v2
+    - name: Checkout Repository
+      uses: actions/checkout@v4
 
-      - name: Get Tag Name
-        id: get_tag
-        run: echo "TAG=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
+    # Setup gcloud CLI
+    - id: 'auth'
+      name: 'Authenticate to Google Cloud'
+      uses: 'google-github-actions/auth@v0.4.0'
+      with:
+        credentials_json: '${{ secrets.GKE_SA_KEY }}'
 
-      - name: Build Docker Image for Service 1
-        working-directory: ./service1
-        run: |
-          if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
-            image_tag=latest
-          else
-            image_tag=${{ steps.get_tag.outputs.TAG }}
-          fi
-          docker build -t docker.pkg.github.com/${{ github.repository }}/service1:${image_tag} -f ../dockerfile.d/rust.dockerfile --build-arg="APP_NAME=service1" .
-          echo "::set-output name=image_tag::${image_tag}"
-        env:
-          DOCKER_BUILDKIT: 1
+    # Configure Docker to use the gcloud command-line tool as a credential
+    # helper for authentication
+    - run: |-
+        gcloud --quiet auth configure-docker
 
-      - name: Log in to GitHub Container Registry
-        run: echo "${{ secrets.CR_PAT }}" | docker login docker.pkg.github.com -u ${{ github.repository_owner }} --password-stdin
-
-      - name: Push Docker Image
-        run: docker push docker.pkg.github.com/${{ github.repository }}/service1:${{ steps.build-service1.outputs.image_tag }}
+    # Build the Docker image
+    - name: Set TAG Environment Variable
+      run: echo "TAG=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
+    - name: Build Docker Image for Service 1
+      working-directory: ./service1
+      run: |-
+        gcloud config set account ${{ secrets.SA_EMAIL }}
+        if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+          image_tag=latest
+        else
+          image_tag=${TAG}
+        fi
+        docker buildx build --push --tag "gcr.io/$PROJECT_ID/service1:${image_tag}" \
+        --tag "gcr.io/$PROJECT_ID/service1:latest" \
+        -f ../dockerfile.d/rust.dockerfile \
+        --build-arg="APP_NAME=service1" \
+        --build-arg GITHUB_SHA="$GITHUB_SHA" \
+        --build-arg GITHUB_REF="$GITHUB_REF" \
+        .
+        echo "::set-output name=image_tag::${image_tag}"
+      env:
+        DOCKER_BUILDKIT: 1
 
   build-service2:
     name: Build Docker Image for Service 2
@@ -114,54 +131,77 @@ jobs:
     if: startsWith(github.ref, 'refs/heads/main') || startsWith(github.ref, 'refs/tags/v')
 
     steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v2
+    - name: Checkout Repository
+      uses: actions/checkout@v4
 
-      - name: Get Tag Name
-        id: get_tag
-        run: echo "TAG=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
+    # Setup gcloud CLI
+    - id: 'auth'
+      name: 'Authenticate to Google Cloud'
+      uses: 'google-github-actions/auth@v0.4.0'
+      with:
+        credentials_json: '${{ secrets.GKE_SA_KEY }}'
 
-      - name: Build Docker Image for Service 2
-        working-directory: ./service2
-        run: |
-          if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
-            image_tag=latest
-          else
-            image_tag=${{ steps.get_tag.outputs.TAG }}
-          fi
-          docker build -t docker.pkg.github.com/${{ github.repository }}/service2:${image_tag} -f ../dockerfile.d/rust.dockerfile --build-arg="APP_NAME=service2" .
-          echo "::set-output name=image_tag::${image_tag}"
-        env:
-          DOCKER_BUILDKIT: 1
+    # Configure Docker to use the gcloud command-line tool as a credential
+    # helper for authentication
+    - run: |-
+        gcloud --quiet auth configure-docker
 
-      - name: Log in to GitHub Container Registry
-        run: echo "${{ secrets.CR_PAT }}" | docker login docker.pkg.github.com -u ${{ github.repository_owner }} --password-stdin
-
-      - name: Push Docker Image
-        run: docker push docker.pkg.github.com/${{ github.repository }}/service2:${{ steps.build-service2.outputs.image_tag }}
+    # Build the Docker image
+    - name: Set TAG Environment Variable
+      run: echo "TAG=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
+    - name: Build Docker Image for Service 2
+      working-directory: ./service2
+      run: |-
+        gcloud config set account ${{ secrets.SA_EMAIL }}
+        if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+          image_tag=latest
+        else
+          image_tag=${TAG}
+        fi
+        docker buildx build --push --tag "gcr.io/$PROJECT_ID/service2:${image_tag}" \
+        --tag "gcr.io/$PROJECT_ID/service2:${image_tag}" \
+        -f ../dockerfile.d/rust.dockerfile \
+        --build-arg="APP_NAME=service2" \
+        --build-arg GITHUB_SHA="$GITHUB_SHA" \
+        --build-arg GITHUB_REF="$GITHUB_REF" \
+        .
+        echo "::set-output name=image_tag::${image_tag}"
+      env:
+        DOCKER_BUILDKIT: 1
 
   deploy-to-gke:
       name: Deploy to GKE
       runs-on: ubuntu-latest
       needs: [build-service1, build-service2]
       if: startsWith(github.ref, 'refs/tags/v')  # Only run on tagged commits
+      environment: production
 
       steps:
-        - name: Checkout Repository
-          uses: actions/checkout@v2
+        - name: Checkout
+          uses: actions/checkout@v4
 
-        - name: Set Up Google Cloud SDK
-          uses: google-github-actions/setup-gcloud@v0.2.0
+        # Setup gcloud CLI
+        - id: 'auth'
+          name: 'Authenticate to Google Cloud'
+          uses: 'google-github-actions/auth@v0.4.0'
           with:
-            service_account_key: ${{ secrets.GKE_SERVICE_ACCOUNT_KEY }}
-            project_id: ${{ secrets.GCLOUD_PROJECT_ID }}
-            export_default_credentials: true
+            credentials_json: '${{ secrets.GKE_SA_KEY }}'
 
-        - name: Replace Tag in Kubernetes Manifest
-          run: |
-            sed -i "s/:latest/:${{ steps.get_tag.outputs.TAG }}/g" ./service1/k8s.yaml
-            sed -i "s/:latest/:${{ steps.get_tag.outputs.TAG }}/g" ./service2/k8s.yaml
+        - name: Set TAG Environment Variable
+          run: echo "TAG=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
 
         - name: Deploy to GKE
-          run: |
+          run: |-
+            echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" | sudo tee -a /etc/apt/sources.list.d/google-cloud-sdk.list
+            curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key --keyring /usr/share/keyrings/cloud.google.gpg add -
+            sudo apt update
+            sudo apt-get install google-cloud-sdk-gke-gcloud-auth-plugin kubectl
+            gcloud config set account ${{ secrets.SA_EMAIL }}
+            gcloud container clusters get-credentials devops-challenge --project=${{ secrets.GKE_PROJECT }} --zone=${{ secrets.GKE_ZONE }}
+
+            # Apply the Kubernetes manifests
             kubectl apply -f ./service1/k8s.yaml,./service2/k8s.yaml
+            # Apply the Kubernetes manifests
+            kubectl apply -f ./service1/k8s.yaml,./service2/k8s.yaml
+          env:
+            USE_GKE_GCLOUD_AUTH_PLUGIN: True
