@@ -22,6 +22,12 @@ spec:
       labels:
         app: service1
     spec:
+      volumes:
+        - name: tmp
+          emptyDir: {}
+        - name: data
+          persistentVolumeClaim:
+            claimName: default-pvc
       affinity:
         nodeAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
@@ -38,6 +44,9 @@ spec:
         resources: {}
         terminationMessagePath: /dev/termination-log
         terminationMessagePolicy: File
+        volumeMounts:
+          - name: persistent-configs
+            mountPath: /var/configs
 ---
 apiVersion: v1
 kind: Service
@@ -78,4 +87,68 @@ spec:
   tls:
   - hosts:
     - service1.heri.life
-    secretName: wildcard-pleno-earth-tls
+    secretName: wildcard-heri.life-tls
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: default-pvc
+  namespace: default
+  finalizers:
+    - kubernetes.io/pvc-protection
+status:
+  phase: Bound
+  accessModes:
+    - ReadWriteOnce
+  capacity:
+    storage: 10Gi
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+  volumeName: default-pv
+  storageClassName: regionalpd-storageclass
+  volumeMode: Filesystem
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: default-pv
+  finalizers:
+    - kubernetes.io/pv-protection
+    - external-attacher/pd-csi-storage-gke-io
+spec:
+  capacity:
+    storage: 10Gi
+  csi:
+    driver: pd.csi.storage.gke.io
+    volumeHandle: >-
+      projects/devops-challenge-id/regions/asia-southeast2/disks/default-pvc
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: standard
+  volumeMode: Filesystem
+
+---
+apiVersion: autoscaling/v2beta2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: service1-hpa
+  namespace: service1
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: service1-deployment
+  minReplicas: 1
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 50

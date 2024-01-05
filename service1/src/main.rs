@@ -36,7 +36,7 @@ async fn main() -> std::io::Result<()> {
         let cors = Cors::default()
             .allowed_origin("http://127.0.0.1")
             .allowed_origin("http://service2") // Add additional origins here
-            .allowed_origin("http://pleno.earth");
+            .allowed_origin("http://heri.life");
 
         App::new()
             .wrap(cors)
