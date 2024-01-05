@@ -19,7 +19,7 @@ async fn ping_service2() -> Result<HttpResponse, Error> {
     let client_options = ClientOptions::parse(&mongo_uri).await.unwrap();
     let mongo_client = MongoClient::with_options(client_options).unwrap();
     let db_name = std::env::var("DB_NAME").expect("DB_NAME not set");
-    let db = mongo_client.database(&db_name);
+    let _db = mongo_client.database(&db_name);
 
     let client = Client::new();
 
