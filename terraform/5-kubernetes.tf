@@ -1,23 +1,23 @@
 # https://registry.terraform.io/providers/hashicorp/google/latest/docs/resources/container_cluster
-resource "google_container_cluster" "prod-price" {
+resource "google_container_cluster" "staging" {
   name     = local.cluster_name
-  location = local.zone
+  location = local.region
   project  = local.project_name
 
   networking_mode = "VPC_NATIVE"
-  network         = local.network
+  network         = google_compute_network.staging.self_link
   subnetwork      = google_compute_subnetwork.private.self_link
 
   remove_default_node_pool = true
-  initial_node_count       = 1
+  initial_node_count       = local.initial_node_count
 
   release_channel {
     channel = "REGULAR"
   }
 
   ip_allocation_policy {
-    cluster_secondary_range_name  = "${local.cluster_name}-pod-range"
-    services_secondary_range_name = "${local.cluster_name}-services-range"
+    cluster_secondary_range_name  = "pod-ip-range"
+    services_secondary_range_name = "services-ip-range"
   }
 
   network_policy {
@@ -33,25 +33,21 @@ resource "google_container_cluster" "prod-price" {
 
 }
 
-resource "google_container_node_pool" "prod-price-node-pool" {
-  name       = "${local.machine_type}-pool"
-  location   = local.zone
-  cluster    = google_container_cluster.prod-price.name
+resource "google_container_node_pool" "general" {
+  name       = "${local.cluster_name}-node-pool"
+  location   = local.region
+  cluster    = google_container_cluster.staging.name
   project    = local.project_name
   node_count = local.node_count
-  autoscaling {
-    min_node_count = 1
-    max_node_count = 5
-  }
+
   management {
     auto_repair  = true
     auto_upgrade = true
   }
 
   node_config {
-    preemptible  = false
+    preemptible  = true
     machine_type = local.machine_type
-    image_type   = "COS_CONTAINERD"
     metadata = {
       disable-legacy-endpoints = "true"
     }

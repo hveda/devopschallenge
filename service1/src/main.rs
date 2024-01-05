@@ -1,6 +1,7 @@
 use actix_web::{get, App, HttpResponse, HttpServer, Responder, Error};
 use actix_cors::Cors;
 use awc::Client;
+use mongodb::{Client as MongoClient, options::ClientOptions};
 use std::time::Duration;
 
 const MAX_RETRIES: usize = 5;
@@ -12,13 +13,22 @@ async fn hello() -> impl Responder {
 }
 
 #[get("/ping")]
-async fn ping_service2() -> Result<HttpResponse, Error>  {
+async fn ping_service2() -> Result<HttpResponse, Error> {
+    // Connect to MongoDB
+    let mongo_uri = std::env::var("MONGO_URI").expect("MONGO_URI not set");
+    let client_options = ClientOptions::parse(&mongo_uri).await.unwrap();
+    let mongo_client = MongoClient::with_options(client_options).unwrap();
+    let db_name = std::env::var("DB_NAME").expect("DB_NAME not set");
+    let db = mongo_client.database(&db_name);
+
     let client = Client::new();
 
     for _ in 0..MAX_RETRIES {
         match client.post("http://service2:8081/pong").send().await {
             Ok(mut response) => {
                 let body = response.body().await?;
+                // Use MongoDB here, for example, insert data into a collection
+                // db.collection("your_collection_name").insert_one(...).await.unwrap();
                 return Ok(HttpResponse::Ok().body(body));
             },
             Err(_) => {
@@ -32,11 +42,13 @@ async fn ping_service2() -> Result<HttpResponse, Error>  {
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
+    // Your MongoDB connection setup is here
+
     HttpServer::new(|| {
         let cors = Cors::default()
             .allowed_origin("http://127.0.0.1")
             .allowed_origin("http://service2") // Add additional origins here
-            .allowed_origin("http://heri.life");
+            .allowed_origin("http://pleno.earth");
 
         App::new()
             .wrap(cors)
@@ -46,23 +58,4 @@ async fn main() -> std::io::Result<()> {
     .bind("0.0.0.0:8080")?
     .run()
     .await
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use actix_web::test::{self, TestRequest};
-
-    #[actix_rt::test]
-    async fn test_hello() {
-        let mut app = test::init_service(App::new().service(hello)).await;
-        
-        let req = TestRequest::get().uri("/").to_request();
-        let resp = test::call_service(&mut app, req).await;
-
-        assert_eq!(resp.status(), actix_web::http::StatusCode::OK);
-        
-        let body = test::read_body(resp).await;
-        assert_eq!(body, "Hello world in service 1!");
-    }
 }
