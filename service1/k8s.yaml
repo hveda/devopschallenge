@@ -45,8 +45,12 @@ spec:
         terminationMessagePath: /dev/termination-log
         terminationMessagePolicy: File
         volumeMounts:
-          - name: persistent-configs
-            mountPath: /var/configs
+          - name: data
+            mountPath: /data
+      volumes:
+      - name: "data"
+        persistentVolumeClaim:
+          claimName: "default-pvc"
 ---
 apiVersion: v1
 kind: Service
@@ -133,7 +137,7 @@ spec:
   volumeMode: Filesystem
 
 ---
-apiVersion: autoscaling/v2beta2
+apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
   name: service1-hpa

@@ -197,7 +197,7 @@ jobs:
             sudo apt update
             sudo apt-get install google-cloud-sdk-gke-gcloud-auth-plugin kubectl
             gcloud config set account ${{ secrets.SA_EMAIL }}
-            gcloud container clusters get-credentials devops-challenge --project=${{ secrets.GKE_PROJECT }} --region=${{ secrets.GKE_ZONE }}
+            gcloud container clusters get-credentials default-cluster --project=${{ secrets.GKE_PROJECT }} --region=${{ secrets.GKE_ZONE }}
 
             # Apply the Kubernetes manifests
             kubectl apply -f ./service1/k8s.yaml,./service2/k8s.yaml
