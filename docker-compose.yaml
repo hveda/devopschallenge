@@ -1,7 +1,7 @@
 version: "3.6"
 
 networks:
- pleno-network:
+ heri.life-network:
   driver: bridge
   ipam:
    config:

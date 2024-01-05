@@ -78,4 +78,4 @@ spec:
   tls:
   - hosts:
     - service2.heri.life
-    secretName: wildcard-pleno-earth-tls
+    secretName: wildcard-heri.life-tls
