@@ -125,7 +125,7 @@ spec:
   csi:
     driver: pd.csi.storage.gke.io
     volumeHandle: >-
-      projects/devops-challenge-id/regions/asia-southeast2/disks/default-pvc
+      projects/devops-poc-id/regions/asia-southeast2/disks/default-pvc
   accessModes:
     - ReadWriteOnce
   persistentVolumeReclaimPolicy: Retain
